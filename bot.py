@@ -15,7 +15,6 @@ from keyboard_buttons import admin_keyboard
 from aiogram.fsm.context import FSMContext
 from middlewares.throttling import ThrottlingMiddleware #new
 from states.reklama import Adverts
-from states.register import Register
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import time 
