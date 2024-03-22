@@ -1,16 +1,16 @@
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart,Command
+from aiogram.filters import CommandStart,Command,and_f
 from aiogram import F
-from aiogram.types import Message
+from aiogram.types import Message,ChatPermissions,input_file
 from data import config
 import asyncio
 import logging
 import sys
 from menucommands.set_bot_commands  import set_default_commands
 from baza.sqlite import Database
-from filters.admin import IsBotAdminFilter
-from filters.check_sub_channel import IsCheckSubChannels
+from filtersd.admin import IsBotAdminFilter
+from filtersd.check_sub_channel import IsCheckSubChannels
 from keyboard_buttons import admin_keyboard
 from aiogram.fsm.context import FSMContext
 from middlewares.throttling import ThrottlingMiddleware #new
@@ -56,6 +56,10 @@ async def kanalga_obuna(message:Message):
 async def is_admin(message:Message):
     await message.answer(text="Admin menu",reply_markup=admin_keyboard.admin_button)
 
+@dp.message(Command("help"),IsBotAdminFilter(ADMINS))
+async def ishf_admin(message:Message):
+    await message.answer(text="Bu bot gruhlarni tartibga solib turadi")
+
 
 @dp.message(F.text=="Foydalanuvchilar soni",IsBotAdminFilter(ADMINS))
 async def users_count(message:Message):
@@ -87,6 +91,141 @@ async def send_advert(message:Message,state:FSMContext):
     await state.clear()
 
 
+@dp.message(F.new_chat_member)
+async def new_member(message:Message):
+    user = message.new_chat_member.get("first_name")
+    await message.answer(f"{user} Guruhga xush kelibsiz!")
+    await message.delete()
+
+@dp.message(F.left_chat_member)
+async def new_member(message:Message):
+    # print(message.new_chat_member)
+    user = message.left_chat_member.full_name
+    await message.answer(f"{user} Xayr!")
+    await message.delete()
+
+@dp.message(and_f(F.reply_to_message,F.text=="/ban"))
+async def ban_user(message:Message):
+    user_id =  message.reply_to_message.from_user.id
+    await message.chat.ban_sender_chat(user_id)
+    await message.answer(f"{message.reply_to_message.from_user.first_name} guruhdan chiqarilib yuborildingiz.")
+
+@dp.message(and_f(F.reply_to_message,F.text=="/unban"))
+async def unban_user(message:Message):
+    user_id =  message.reply_to_message.from_user.id
+    await message.chat.unban_sender_chat(user_id)
+    await message.answer(f"{message.reply_to_message.from_user.first_name} guruhga qaytishingiz mumkin.")
+
+from time import time
+@dp.message(and_f(F.reply_to_message,F.text=="/mute"))
+async def mute_user(message:Message):
+    user_id =  message.reply_to_message.from_user.id
+    permission = ChatPermissions(can_send_messages=False)
+
+    until_date = int(time()) + 300 # 1minut guruhga yoza olmaydi
+    await message.chat.restrict(user_id=user_id,permissions=permission,until_date=until_date)
+    await message.answer(f"{message.reply_to_message.from_user.first_name} 5 minutga blocklandingiz")
+
+@dp.message(and_f(F.reply_to_message,F.text=="/unmute"))
+async def unmute_user(message:Message):
+    user_id =  message.reply_to_message.from_user.id
+    permission = ChatPermissions(can_send_messages=True)
+    await message.chat.restrict(user_id=user_id,permissions=permission)
+    await message.answer(f"{message.reply_to_message.from_user.first_name} guruhga yoza olasiz")
+
+
+# import time
+
+# @dp.message(and_f(F.reply_to_message,F.text.startswith('/mute')))
+# async def mute_user(message:Message):
+#     member = await message.chat.get_member(message.from_user.id)
+    
+#     if member.status in ("administrator","creator"):
+#         try:
+#             minut = int(message.text.split("/mute")[1])
+#         except:
+#             minut = 1
+        
+#         until_date = time.time() + minut*60
+#         user_id =  message.reply_to_message.from_user.id
+#         permission = ChatPermissions(can_send_messages=False)
+
+#         await message.chat.restrict(user_id=user_id,permissions=permission,until_date=until_date)
+#         await message.answer(f"{message.reply_to_message.from_user.first_name} {minut} minutga blocklandingiz")
+#         await message.reply_to_message.delete()
+#     else:
+#         await message.answer("Siz admin emassiz")
+
+    
+# @dp.message(and_f(F.reply_to_message,F.text=="/unmute"))
+# async def unmute_user(message:Message):
+#     user_id =  message.reply_to_message.from_user.id
+#     permisins = ChatPermissions(can_send_messages=True)
+#     await message.chat.restrict(user_id=user_id,permissions=permisins)
+#     await message.answer(f"{message.reply_to_message.from_user.first_name} blokdan olindingiz")
+
+
+
+from time import time
+xaqoratli_sozlar = {"tentak","jinni,to'poy,axmoq"}
+@dp.message(and_f(F.chat.func(lambda chat: chat.type == "supergroup"),F.text ))
+async def tozalash(message:Message):
+    text = message.text
+    print(text)
+    for soz in xaqoratli_sozlar:
+        print(soz,text.lower().find(soz))
+        if text.lower().find(soz)!=-1 :
+            user_id =  message.from_user.id
+            until_date = int(time()) + 300 # 1minut guruhga yoza olmaydi
+            permission = ChatPermissions(can_send_messages=False)
+            await message.chat.restrict(user_id=user_id,permissions=permission,until_date=until_date)
+            await message.answer(text=f"{message.from_user.mention_html()} guruhda so'kinganingiz uchun 5 minutga blokga tushdingiz")
+            await message.delete() 
+            break
+    
+
+@dp.message(and_f(F.chat.func(lambda chat: chat.type == "supergroup"),F.animation))
+async def git_yuborma(message:Message):
+    user_id =  message.from_user.id
+    await message.chat.ban_sender_chat(user_id)
+    await message.answer(f"{message.from_user.mention_html()} Siz katta xato qildingiz va 1 soatga bloklandingiz😔 ")
+    await message.delete()
+
+          
+@dp.message(and_f(F.chat.func(lambda chat: chat.type == "supergroup"),F.photo))
+async def gef_yuborma(message:Message):
+            user_id =  message.from_user.id
+            await message.chat.ban_sender_chat(user_id)
+            await message.answer_photo(f"{message.from_user.mention_html()} E bolla katta xato qilding rasm tashlab 1 soatga bliklanding 😔")
+            await message.delete()
+
+@dp.message(and_f(F.chat.func(lambda chat: chat.type == "supergroup"),F.video))
+async def gef_yuborma(message:Message):
+            user_id =  message.from_user.id
+            await message.chat.ban_sender_chat(user_id)
+            await message.answer_video(f"{message.from_user.mention_html()} E bolla katta xato qilding vidyo tashlab 1 soatga bloklanding 😔")
+            await message.delete()
+          
+
+
+@dp.message(and_f(F.reply_to_message,F.text=="/setphoto"))
+async def setphoto_group(message:Message):
+    photo =  message.reply_to_message.photo[-1].file_id
+    file = await bot.get_file(photo)
+    file_path = file.file_path
+    file = await bot.download_file(file_path)
+    file = file.read()
+    await message.chat.set_photo(photo=input_file.BufferedInputFile(file=file,filename="asd.jpg"))
+    await message.answer("Gruh rasmi uzgardi")
+
+
+@dp.message(F.text.startswith('/setname'))
+async def set_name(message: Message):
+    text = message.text.split("/setname")[1]
+    print(text)
+    if text:
+        await message.chat.set_title(text)
+
 
 
 @dp.startup()
@@ -94,8 +233,13 @@ async def on_startup_notify(bot: Bot):
     for admin in ADMINS:
         try:
             await bot.send_message(chat_id=int(admin),text="Bot ishga tushdi")
+            # await bot.restrict_chat_member(-1002143843957,6208545740,ChatPermissions(can_send_messages=True))
         except Exception as err:
+        
             logging.exception(err)
+            # @dp.startup()
+
+   
 
 #bot ishga tushganini xabarini yuborish
 @dp.shutdown()
